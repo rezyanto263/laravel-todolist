@@ -2,12 +2,23 @@
 
 namespace Tests\Feature;
 
+use App\Models\Todo;
+use Database\Seeders\TodoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Testing\Assert;
 use Tests\TestCase;
 
 class TodolistControllerTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        DB::delete('DELETE FROM todos');
+    }
+
     public function testTodolistPageAsGuest()
     {
         $this->get('/todolist')
@@ -24,23 +35,15 @@ class TodolistControllerTest extends TestCase
 
     public function testTodolist()
     {
+        $this->seed(TodoSeeder::class);
+
         $this->withSession([
-            'username' => 'reza',
-            'todolist' => [
-                [
-                    'id' => '1',
-                    'todo' => 'Ngopi'
-                ],
-                [
-                    'id' => '2',
-                    'todo' => 'Ngoding'
-                ]
-            ]
+            'username' => 'reza'
         ])->get('/todolist')
             ->assertSeeText('1')
-            ->assertSeeText('Ngopi')
+            ->assertSeeText('ngopi')
             ->assertSeeText('2')
-            ->assertSeeText('Ngoding');
+            ->assertSeeText('makan');
     }
 
     public function testSaveTodoFailed()
@@ -62,25 +65,24 @@ class TodolistControllerTest extends TestCase
 
     public function testRemoveTodo()
     {
+        $this->seed([TodoSeeder::class]);
+        $todo = Todo::query();
+
+        self::assertEquals(2, $todo->count());
+        
         $this->withSession([
-            'username' => 'reza',
-            'todolist' => [
-                [
-                    'id' => '1',
-                    'todo' => 'Ngopi'
-                ],
-                [
-                    'id' => '2',
-                    'todo' => 'Ngoding'
-                ]
-            ]
+            'username' => 'reza'
         ])->post('/todolist/2/delete')
-            ->assertRedirect('/todolist')
-            ->assertSessionHas('todolist', [
-                [
-                    'id' => '1',
-                    'todo' => 'Ngopi'
-                ]
-            ])->assertSessionMissing('2');
+            ->assertRedirect('/todolist');
+
+
+        $expected = [
+            [
+                'id' => '1',
+                'todo' => 'ngopi'
+            ]
+        ];
+        Assert::assertArraySubset($expected, $todo->get()->toArray());
+        self::assertEquals(1, $todo->count());
     }
 }
